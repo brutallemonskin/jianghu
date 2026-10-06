@@ -18002,16 +18002,27 @@ const GameAudio=(()=>{
  try{const p=JSON.parse(localStorage.getItem('wuxia-audio')||'null');if(p){prefs.muted=p.muted===true;for(const k of ['music','sfx','ui'])if(Number.isFinite(p[k]))prefs[k]=Math.max(0,Math.min(1,p[k]));}}catch(_){}
  const trace=(kind,data={})=>{events.push({kind,time:performance.now(),...data});if(events.length>80)events.shift();};
  const url=src=>window.GAME_AUDIO_INLINE?.[src]||src;
+ function playbackSession(){
+  // iOS otherwise treats Web Audio as ambient/ringer audio. No microphone access.
+  try{if(navigator.audioSession&&navigator.audioSession.type!=='playback')navigator.audioSession.type='playback';}catch(_){}
+ }
  function ensure(){
   if(ctx)return true;const Audio=window.AudioContext||window.webkitAudioContext;
   if(!Audio){error='此浏览器暂不支持声音';paint();return false;}
-  try{ctx=new Audio();musicBus=ctx.createGain();sfxBus=ctx.createGain();uiBus=ctx.createGain();musicBus.connect(ctx.destination);sfxBus.connect(ctx.destination);uiBus.connect(ctx.destination);volumes();return true;}
+  try{playbackSession();ctx=new Audio();musicBus=ctx.createGain();sfxBus=ctx.createGain();uiBus=ctx.createGain();musicBus.connect(ctx.destination);sfxBus.connect(ctx.destination);uiBus.connect(ctx.destination);volumes();
+   ctx.addEventListener('statechange',()=>{if(ctx.state==='running'){unlocked=true;if(!document.hidden&&!prefs.muted){loadEffects();reconcile();}}else stopEffects();paint();});return true;}
   catch(_){error='声音暂不可用，可再次开启';paint();return false;}
  }
  function volumes(){if(!ctx)return;const t=ctx.currentTime;for(const [bus,key] of [[musicBus,'music'],[sfxBus,'sfx'],[uiBus,'ui']]){bus.gain.cancelScheduledValues(t);bus.gain.setTargetAtTime(prefs.muted?0:prefs[key],t,.025);}}
  async function unlock(){
-  if(!ensure())return;
-  try{await ctx.resume();unlocked=ctx.state==='running';if(unlocked){loadEffects();reconcile();}}catch(_){error='请点按开启声音';}paint();
+  if(prefs.muted||document.hidden||!ensure())return false;
+  try{
+   playbackSession();const resume=ctx.resume();
+   // Start inside the tap/click dispatch, before any await. This one silent sample
+   // primes older mobile WebKit; it never queues a stale combat sound.
+   if(ctx.state!=='running'){const prime=ctx.createBufferSource();prime.buffer=ctx.createBuffer(1,1,ctx.sampleRate);prime.connect(ctx.destination);prime.onended=()=>prime.disconnect();prime.start();}
+   loadEffects();paint();await resume;unlocked=ctx.state==='running';if(unlocked){error='';reconcile();}
+  }catch(_){error='请点按开启声音';}paint();return ctx?.state==='running';
  }
  function loadEffects(){
   for(const [key,a] of Object.entries(assets.sfx)){
@@ -18198,8 +18209,9 @@ const GameAudio=(()=>{
  function save(){try{localStorage.setItem('wuxia-audio',JSON.stringify(prefs));}catch(_){}volumes();if(prefs.muted||!prefs.sfx)stopEffects(prefs.muted);if(!prefs.ui)stopUI();reconcile();paint();}
  function paint(){
   const b=document.getElementById('sound-toggle'),label=document.getElementById('sound-now');
-  if(b){b.textContent=prefs.muted?'声音：已静音':!unlocked?'开启声音':'声音：已开启';b.setAttribute('aria-pressed',String(!prefs.muted&&unlocked));}
-  if(label)label.textContent=error||(!desired?'江湖声韵':(loading?'正在载入 · ':'')+assets.music[desired].name);
+  const running=ctx?.state==='running',paused=!!ctx&&!running;
+  if(b){b.textContent=prefs.muted?'声音：已静音':paused?'点按恢复声音':!unlocked?'开启声音':'声音：已开启';b.setAttribute('aria-pressed',String(!prefs.muted&&running));}
+  if(label)label.textContent=error||(paused&&!prefs.muted?'声音已暂停，请点按恢复':!prefs.music&&!prefs.sfx&&!prefs.ui?'音量为零，可在设置中调整':!desired?'江湖声韵':(loading?'正在载入 · ':'')+assets.music[desired].name);
   for(const k of ['music','sfx','ui']){const out=document.getElementById('sound-'+k+'-value');if(out)out.textContent=Math.round(prefs[k]*100)+'%';}
  }
  function settings(){
@@ -18210,12 +18222,14 @@ const GameAudio=(()=>{
   for(const k of ['music','sfx','ui'])dialog.querySelector('#sound-'+k).addEventListener('input',e=>{prefs[k]=Number(e.target.value)/100;save();});dialog.querySelector('#sound-ui-preview').onclick=()=>feedback('confirm');dialog.showModal();paint();
  }
  const bar=document.createElement('div');bar.id='sound-controls';bar.innerHTML='<span id="sound-now">江湖声韵</span><div><button type="button" id="sound-toggle" aria-pressed="false">开启声音</button><button type="button" id="sound-settings" aria-haspopup="dialog">声音设置</button></div>';document.getElementById('app').before(bar);
- bar.querySelector('#sound-toggle').onclick=()=>{if(!unlocked||ctx?.state!=='running'){prefs.muted=false;unlock();}else prefs.muted=!prefs.muted;save();};bar.querySelector('#sound-settings').onclick=settings;
- const gesture=e=>{if((!unlocked||ctx?.state==='suspended')&&!e.target.closest('#sound-controls,#sound-dialog'))unlock();};
- document.addEventListener('pointerdown',gesture,{passive:true});document.addEventListener('keydown',gesture);
- document.addEventListener('visibilitychange',()=>{if(!ctx)return;if(document.hidden){stopEffects();ctx.suspend().catch(()=>{});}else if(unlocked)ctx.resume().then(reconcile).catch(()=>{});});
+ bar.querySelector('#sound-toggle').onclick=()=>{if(!unlocked||ctx?.state!=='running'){prefs.muted=false;unlock();}else prefs.muted=!prefs.muted;save();};bar.querySelector('#sound-settings').onclick=()=>{if(!prefs.muted)unlock();settings();};
+ const gesture=e=>{if(e.isTrusted&&!prefs.muted&&(!unlocked||ctx?.state!=='running')&&!e.target.closest?.('#sound-controls,#sound-dialog'))unlock();};
+ // Touch pointerdown is not an audio activation gesture in every mobile browser.
+ // Retry on touchend/click, including the interrupted state after calls/app swaps.
+ document.addEventListener('pointerdown',gesture,{passive:true});document.addEventListener('touchend',gesture,{passive:true});document.addEventListener('click',gesture,true);document.addEventListener('keydown',gesture);
+ document.addEventListener('visibilitychange',()=>{if(!ctx)return;if(document.hidden){stopEffects();ctx.suspend().catch(()=>{});}else if(unlocked&&!prefs.muted)unlock();paint();});
  window.addEventListener('pagehide',()=>{stopEffects();ctx?.suspend().catch(()=>{});});
- window.addEventListener('pageshow',()=>{if(ctx&&unlocked&&!document.hidden)ctx.resume().then(reconcile).catch(()=>{});});paint();
+ window.addEventListener('pageshow',()=>{if(ctx&&unlocked&&!document.hidden&&!prefs.muted)unlock();paint();});paint();
  return {select,classify,strike,contact,support,frame,stopEffects,unlock,ui,feedback,get state(){return {desired,current:current?.key||null,unlocked,loading,error,prefs:{...prefs},context:ctx?.state,voices:voices.size,uiVoices:uiVoices.size,loadedEffects:effects.size,cache:[...cache.keys()],events:[...events]};}};
 })();
 // Wrap final renderers, including save restore and shared-player duels.
