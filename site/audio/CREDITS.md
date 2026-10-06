@@ -1,5 +1,22 @@
 # 江湖浮生录 · 声音素材
 
+## 武学分类音效（2026-10-05）
+
+出手与命中分别播放，主角、伙伴和敌人共用同一套分类。刀剑、枪、棍棒、鞭、拳、掌、腿、爪、指、暗器、内劲与雷法采用不同的录音搭配。紫金武学或会心命中最多增加一层轻声尾音；落空、格挡不播放命中录音。声音不参与战斗随机数或伤害计算。
+
+| 新运行文件（audio/sfx/） | 原录音 | 作者 | 许可 |
+|---|---|---|---|
+| martial-cut-v1.wav | sword.6.ogg | StarNinjas | CC0 1.0 |
+| martial-cleave-v1.wav | sword.8.ogg | StarNinjas | CC0 1.0 |
+| martial-thud-v1.wav | qubodupPunch04.flac | Iwan “qubodup” Gabovitch | CC0 1.0 |
+| martial-snap-v1.wav | qubodupPunch05.flac | Iwan “qubodup” Gabovitch | CC0 1.0 |
+| martial-qi-v1.wav | Flare 1.15 powers/quake.ogg | Brandon Morris (Augmentality) | CC BY 3.0 |
+| martial-thunder-v1.wav | Flare 1.15 powers/shock.ogg | Brandon Morris (Augmentality) | CC BY 3.0 |
+
+来源：[StarNinjas 刀剑录音](https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes)、[qubodup 拳击录音](https://opengameart.org/content/punch)、[Flare 官方逐项署名](https://github.com/flareteam/flare-game/wiki/Credits)。Flare 原件：[quake.ogg](https://github.com/flareteam/flare-game/blob/v1.15/mods/fantasycore/soundfx/powers/quake.ogg)、[shock.ogg](https://github.com/flareteam/flare-game/blob/v1.15/mods/fantasycore/soundfx/powers/shock.ogg)。授权全文：[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)、[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)。署名不表示原作者为本游戏背书。
+
+上述六个新 WAV 已去除开头静音，截取0.45—0.9秒、转单声道44.1kHz，统一峰值并作短淡入淡出；原始录音保留在本地 audio/sources/martial-20261005/，转换步骤见 prepare-martial-audio.cjs。现有护体、治疗、回气及格挡的 Flare MP3 未修改。
+
 ## 用户提供的背景音乐
 
 `music/` 中的七首 WAV 为用户提供的 AI 生成音乐，原文件保持不变。它们不属于下列 CC0 音效包。
