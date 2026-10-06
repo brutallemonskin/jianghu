@@ -2,6 +2,8 @@
 
 ## 武学分类音效（2026-10-05）
 
+暗器修正：飞针、飞镖与飞刀独立于指法，取消弓弦发射与拳击命中组合。`needle-flight-v1.wav` 来自 artisticdude 的 [Battle Sound Effects](https://opengameart.org/content/battle-sound-effects) 中 swish_2.wav（CC0）；`needle-hit-v1.wav` 来自下方 StarNinjas 的 sword.6.ogg（CC0）。分别截取0.13秒与0.095秒，滤除低频、淡化尾部、峰值归一到约−6.8dB，转为单声道48kHz。原件位于本地 audio/sources/projectile-20261005/，制作步骤见 prepare-projectile-audio.cjs。发射、刺入与擦身分开触发；高阶暗器只加轻短的刺入尾音。
+
 出手与命中分别播放，主角、伙伴和敌人共用同一套分类。刀剑、枪、棍棒、鞭、拳、掌、腿、爪、指、暗器、内劲与雷法采用不同的录音搭配。紫金武学或会心命中最多增加一层轻声尾音；落空、格挡不播放命中录音。声音不参与战斗随机数或伤害计算。
 
 | 新运行文件（audio/sfx/） | 原录音 | 作者 | 许可 |
